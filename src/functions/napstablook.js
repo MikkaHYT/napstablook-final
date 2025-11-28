@@ -1,5 +1,5 @@
 const { GoogleGenAI, Type } = require("@google/genai");
-const { playMusic, stopMusic } = require("./musicHelper.js");
+const { playMusic, stopMusic, skipMusic, setVolume, pauseMusic, resumeMusic, shuffleQueue, seekMusic, playPrevious, set247 } = require("./musicHelper.js");
 
 let ai;
 
@@ -75,6 +75,82 @@ module.exports = async (client, message) => {
                             type: Type.OBJECT,
                             properties: {},
                         }
+                    },
+                    {
+                        name: "skip_music",
+                        description: "Skips the currently playing song.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "set_volume",
+                        description: "Sets the music volume (0-100).",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {
+                                volume: {
+                                    type: Type.INTEGER,
+                                    description: "The volume level (0-100)."
+                                }
+                            },
+                            required: ["volume"]
+                        }
+                    },
+                    {
+                        name: "pause_music",
+                        description: "Pauses the currently playing music.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "resume_music",
+                        description: "Resumes the paused music.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "shuffle_queue",
+                        description: "Shuffles the current music queue.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "seek_music",
+                        description: "Seeks to a specific time in the current song.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {
+                                time: {
+                                    type: Type.INTEGER,
+                                    description: "The time in seconds to seek to."
+                                }
+                            },
+                            required: ["time"]
+                        }
+                    },
+                    {
+                        name: "play_previous",
+                        description: "Plays the previous song in the queue.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "set_247",
+                        description: "Toggles 24/7 mode for the bot (requires Manage Guild permission).",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
                     }
                 ]
             }
@@ -89,24 +165,9 @@ module.exports = async (client, message) => {
         });
 
         // Handle function calls
-        // The new SDK response structure might be different.
-        // Based on doc: response.functionCalls is an array of calls.
-
         if (response.functionCalls && response.functionCalls.length > 0) {
             const functionResponses = [];
 
-            // Append the model's function call message to history
-            // We need to reconstruct the model's turn that requested the function
-            // The SDK might handle this differently, but for manual turn-taking:
-            // We need to send the function call result back.
-
-            // Actually, for multi-turn with generateContent, we need to append the intermediate steps.
-            // But since we are stateless here (re-sending full history), we just need to handle the current turn.
-            // 1. Model calls function.
-            // 2. We execute function.
-            // 3. We send history + model_call + function_response to get final text.
-
-            // Construct the model's part with function calls
             const modelCallParts = response.functionCalls.map(call => ({
                 functionCall: {
                     name: call.name,
@@ -122,6 +183,22 @@ module.exports = async (client, message) => {
                     apiResponse = await playMusic(client, message, call.args.query);
                 } else if (call.name === "stop_music") {
                     apiResponse = await stopMusic(client, message);
+                } else if (call.name === "skip_music") {
+                    apiResponse = await skipMusic(client, message);
+                } else if (call.name === "set_volume") {
+                    apiResponse = await setVolume(client, message, call.args.volume);
+                } else if (call.name === "pause_music") {
+                    apiResponse = await pauseMusic(client, message);
+                } else if (call.name === "resume_music") {
+                    apiResponse = await resumeMusic(client, message);
+                } else if (call.name === "shuffle_queue") {
+                    apiResponse = await shuffleQueue(client, message);
+                } else if (call.name === "seek_music") {
+                    apiResponse = await seekMusic(client, message, call.args.time);
+                } else if (call.name === "play_previous") {
+                    apiResponse = await playPrevious(client, message);
+                } else if (call.name === "set_247") {
+                    apiResponse = await set247(client, message);
                 } else {
                     apiResponse = { success: false, message: "Unknown function" };
                 }

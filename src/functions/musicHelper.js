@@ -77,10 +77,106 @@ module.exports = {
 
         // Check voice channel match
         if (message.member.voice.channelId !== player.voiceId) {
-            return { success: false, message: "You must be in the same voice channel as me to stop the music." };
+            return { success: false, message: "You must be in the same voice channel as the bot." };
         }
 
         player.destroy();
         return { success: true, message: "Stopped the music and left the voice channel." };
+    },
+
+    skipMusic: async (client, message) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (player.queue.isEmpty && !client.data.get("autoplay", player.guildId)) {
+            return { success: false, message: "Queue is empty, cannot skip." };
+        }
+
+        player.skip();
+        return { success: true, message: "Skipped the current song." };
+    },
+
+    setVolume: async (client, message, volume) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (volume < 0 || volume > 100) return { success: false, message: "Volume must be between 0 and 100." };
+
+        player.setVolume(volume);
+        return { success: true, message: `Volume set to ${volume}%.` };
+    },
+
+    pauseMusic: async (client, message) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (player.paused) return { success: false, message: "Music is already paused." };
+
+        player.pause();
+        return { success: true, message: "Paused the music." };
+    },
+
+    resumeMusic: async (client, message) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (!player.paused) return { success: false, message: "Music is not paused." };
+
+        player.resume();
+        return { success: true, message: "Resumed the music." };
+    },
+
+    shuffleQueue: async (client, message) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (player.queue.isEmpty || player.queue.length <= 1) return { success: false, message: "Not enough songs to shuffle." };
+
+        player.queue.shuffle();
+        return { success: true, message: "Shuffled the queue." };
+    },
+
+    seekMusic: async (client, message, timeInSeconds) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (!player.queue.current.isSeekable) return { success: false, message: "Current song is not seekable." };
+        if (timeInSeconds * 1000 > player.queue.current.duration) return { success: false, message: "Time exceeds song duration." };
+
+        player.seek(timeInSeconds * 1000);
+        return { success: true, message: `Seeked to ${timeInSeconds} seconds.` };
+    },
+
+    playPrevious: async (client, message) => {
+        let player = client.rainlink.players.get(message.guild.id);
+        if (!player) return { success: false, message: "No music is playing." };
+        if (message.member.voice.channelId !== player.voiceId) return { success: false, message: "You must be in the same voice channel." };
+
+        if (!player.queue.previous) return { success: false, message: "No previous song found." };
+
+        player.previous();
+        return { success: true, message: "Playing previous song." };
+    },
+
+    set247: async (client, message) => {
+        if (!message.member.permissions.has("ManageGuild")) {
+            return { success: false, message: "You need 'Manage Guild' permission to toggle 24/7 mode." };
+        }
+
+        const guildData = client.data.get(`guildData_${message.guild.id}`);
+        guildData.reconnect.status = !guildData.reconnect.status;
+
+        if (guildData.reconnect.status) {
+            guildData.reconnect.text = message.channel.id;
+            guildData.reconnect.voice = message.member.voice.channelId;
+        }
+
+        return { success: true, message: `24/7 mode is now ${guildData.reconnect.status ? 'enabled' : 'disabled'}.` };
     }
 };
