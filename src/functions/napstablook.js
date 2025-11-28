@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { playMusic, stopMusic } = require("./musicHelper.js");
 
 let genAI;
 let model;
@@ -8,7 +9,35 @@ function initGemini() {
         genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         model = genAI.getGenerativeModel({
             model: 'gemini-2.5-flash',
-            tools: [{ googleSearch: {} }]
+            tools: [
+                { googleSearch: {} },
+                {
+                    functionDeclarations: [
+                        {
+                            name: "play_music",
+                            description: "Plays music based on a search query. Use this when the user asks to play a song or artist.",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {
+                                    query: {
+                                        type: "STRING",
+                                        description: "The song name, artist name, or URL to play."
+                                    }
+                                },
+                                required: ["query"]
+                            }
+                        },
+                        {
+                            name: "stop_music",
+                            description: "Stops the currently playing music and leaves the voice channel. Use this when the user asks to stop the music or leave.",
+                            parameters: {
+                                type: "OBJECT",
+                                properties: {},
+                            }
+                        }
+                    ]
+                }
+            ]
         });
     }
 }
@@ -56,8 +85,37 @@ module.exports = async (client, message) => {
             ],
         });
 
-        const result = await chat.sendMessage(message.content);
-        const response = await result.response;
+        let result = await chat.sendMessage(message.content);
+        let response = await result.response;
+
+        // Handle function calls
+        const functionCalls = response.functionCalls();
+        if (functionCalls && functionCalls.length > 0) {
+            const functionResponses = [];
+
+            for (const call of functionCalls) {
+                let apiResponse;
+                if (call.name === "play_music") {
+                    apiResponse = await playMusic(client, message, call.args.query);
+                } else if (call.name === "stop_music") {
+                    apiResponse = await stopMusic(client, message);
+                } else {
+                    apiResponse = { success: false, message: "Unknown function" };
+                }
+
+                functionResponses.push({
+                    functionResponse: {
+                        name: call.name,
+                        response: apiResponse
+                    }
+                });
+            }
+
+            // Send function response back to the model
+            result = await chat.sendMessage(functionResponses);
+            response = await result.response;
+        }
+
         const text = response.text();
 
         await addMessage(client, message.author.id, 'user', message.content);
