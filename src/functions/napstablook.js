@@ -222,12 +222,20 @@ module.exports = async (client, message) => {
             });
         }
 
-        const text = response.text;
+        const text = response.text || "";
 
         await addMessage(client, message.author.id, 'user', message.content);
-        await addMessage(client, message.author.id, 'model', text);
-
-        await message.reply(text);
+        if (text) {
+            await addMessage(client, message.author.id, 'model', text);
+            await message.reply(text);
+        } else if (response.functionCalls && response.functionCalls.length > 0) {
+            // If there were function calls but no text, we can assume the action was performed.
+            // However, usually the model should return text after the second turn.
+            // If it doesn't, we might want to send a default message or just log it.
+            // For now, let's not reply if there's absolutely no text, to avoid empty messages.
+            // But to prevent "thinking" forever state if user expects a reply:
+            await message.reply("I've processed your request.");
+        }
         return true;
     } catch (error) {
         console.error('Error interacting with Gemini API:', error);
