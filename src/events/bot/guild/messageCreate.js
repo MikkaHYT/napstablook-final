@@ -1,12 +1,15 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField } = require("discord.js");
 const { createDataGuild, createDataUser } = require("../../../functions/createData.js");
 const { permissions } = require("../../../functions/getPermission.js");
+const handleNapstablookChat = require("../../../functions/napstablook.js");
 
 module.exports = async (client, message) => {
     if (message.author.bot || !message.guild || message.system || message.webhookId) return;
 
     await createDataGuild(client, message.guild);
     await createDataUser(client, message.author);
+
+    if (await handleNapstablookChat(client, message)) return;
 
     const userData = client.data.get(`userData_${message.author.id}`);
     const embed = new EmbedBuilder().setColor(client.config.embedColor);

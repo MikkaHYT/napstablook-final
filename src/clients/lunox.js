@@ -24,6 +24,7 @@ class MainClient extends Client {
         this.config = require("../settings/config.js");
         this.guildData = require("../databases/schema/guild.js");
         this.userData = require("../databases/schema/user.js");
+        this.chatHistory = require("../databases/schema/ChatHistory.js");
         this.prefix = new Collection();
         this.aliases = new Collection();
         this.slash = new Collection();
