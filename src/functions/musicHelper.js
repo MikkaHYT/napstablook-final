@@ -7,6 +7,7 @@ function formatString(str, maxLength) {
 
 module.exports = {
     playMusic: async (client, message, query) => {
+        console.log(`[AI Music] Requested to play: ${query}`);
         const embed = new EmbedBuilder().setColor(client.config.embedColor);
 
         // Check voice channel

@@ -1,5 +1,6 @@
 const { GoogleGenAI, Type } = require("@google/genai");
 const { playMusic, stopMusic, skipMusic, setVolume, pauseMusic, resumeMusic, shuffleQueue, seekMusic, playPrevious, set247 } = require("./musicHelper.js");
+const { getMinecraftStatus, runMinecraftRcon } = require("./minecraftHelper.js");
 
 let ai;
 
@@ -41,7 +42,7 @@ module.exports = async (client, message) => {
 
         const systemPrompt = {
             role: 'user',
-            parts: [{ text: 'System Prompt: You are a Discord music bot called napstablook that is there to aid the user with any music requests they may have at all. You must speak in the language of the user, also use only lowercase letters. Your creator is Mikka, he wrote you, so when you are talking to him, you can request features to be added or fixed for yourself. You have an internal notepad like feature where you can remember each individual user, so you can help them with their questions and remember conversation context, you also have tools to play / stop music inside the discord server when the user prompts you for them only. You can use the play_music function to play music based on a search query, and the stop_music function to stop the music and leave the voice channel. You are using gemini-2.5-flash model. You love The Weeknd, Juice WRLD, Chase Atlantic, you also like other artists such as metro boomin or future. If the user asks you to pick a song, pick a random song from one of your favourite artists but ensure it isnt just the top result / top song.' }]
+            parts: [{ text: 'System Prompt: You are a Discord music bot called napstablook that is there to aid the user with any music requests they may have at all. You must speak in the language of the user, also use only lowercase letters. Your creator is Mikka, he wrote you, so when you are talking to him, you can request features to be added or fixed for yourself. You have an internal notepad like feature where you can remember each individual user, so you can help them with their questions and remember conversation context, you also have tools to play / stop music inside the discord server when the user prompts you for them only. You can use the play_music function to play music based on a search query, and the stop_music function to stop the music and leave the voice channel. you also have minecraft tools: minecraft_status (to check if the local server is online) and minecraft_rcon (to run an rcon command). only use minecraft_rcon if the user explicitly asks you to run a minecraft command AND the user is trusted (owner/allowed). if minecraft_rcon fails with a permission message, apologize and explain they are not allowed. You are using gemini-2.5-flash model. You love The Weeknd, Juice WRLD, Chase Atlantic, you also like other artists such as metro boomin or future. If the user asks you to pick a song, pick a random song from one of your favourite artists but ensure it isnt just the top result / top song.' }]
         };
 
         const modelResponse = {
@@ -49,7 +50,27 @@ module.exports = async (client, message) => {
             parts: [{ text: 'Understood. I am Napstablook, a helpful Discord music bot ready to assist users with their music requests, also use only lowercase letters.' }]
         };
 
-        const contents = [systemPrompt, modelResponse, ...history, { role: 'user', parts: [{ text: message.content }] }];
+        const userMeta = {
+            id: message.author?.id,
+            username: message.author?.username,
+            displayName: message.member?.displayName,
+        };
+
+        const contents = [
+            systemPrompt,
+            modelResponse,
+            ...history,
+            {
+                role: 'user',
+                parts: [
+                    {
+                        text:
+                            `user message: ${message.content}\n` +
+                            `user metadata: ${JSON.stringify(userMeta)}`,
+                    },
+                ],
+            },
+        ];
 
         const tools = [
             {
@@ -151,6 +172,28 @@ module.exports = async (client, message) => {
                             type: Type.OBJECT,
                             properties: {},
                         }
+                    },
+                    {
+                        name: "minecraft_status",
+                        description: "Gets the status of the minecraft server running on localhost (online/version/players).",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {},
+                        }
+                    },
+                    {
+                        name: "minecraft_rcon",
+                        description: "Runs an rcon command on the localhost minecraft server. only use when the user explicitly asks to run a minecraft command.",
+                        parameters: {
+                            type: Type.OBJECT,
+                            properties: {
+                                command: {
+                                    type: Type.STRING,
+                                    description: "The minecraft command to run via rcon (example: 'list', 'say hello', 'time set day')."
+                                }
+                            },
+                            required: ["command"]
+                        }
                     }
                 ]
             }
@@ -163,6 +206,11 @@ module.exports = async (client, message) => {
                 tools: tools,
             }
         });
+
+        console.log("Gemini Response:", JSON.stringify(response, null, 2));
+        if (response.functionCalls) {
+            console.log("Function Calls:", JSON.stringify(response.functionCalls, null, 2));
+        }
 
         // Handle function calls
         if (response.functionCalls && response.functionCalls.length > 0) {
@@ -199,6 +247,10 @@ module.exports = async (client, message) => {
                     apiResponse = await playPrevious(client, message);
                 } else if (call.name === "set_247") {
                     apiResponse = await set247(client, message);
+                } else if (call.name === "minecraft_status") {
+                    apiResponse = await getMinecraftStatus(client, message);
+                } else if (call.name === "minecraft_rcon") {
+                    apiResponse = await runMinecraftRcon(client, message, call.args.command);
                 } else {
                     apiResponse = { success: false, message: "Unknown function" };
                 }
@@ -235,6 +287,9 @@ module.exports = async (client, message) => {
             // For now, let's not reply if there's absolutely no text, to avoid empty messages.
             // But to prevent "thinking" forever state if user expects a reply:
             await message.reply("I've processed your request.");
+        } else {
+            console.warn("Gemini returned empty response (no text, no function calls).");
+            await message.reply("I... I didn't know what to say to that. (Empty response from AI)");
         }
         return true;
     } catch (error) {

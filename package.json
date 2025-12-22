@@ -24,6 +24,7 @@
     "mongoose": "^8.14.1",
     "node-cron": "^4.0.5",
     "pretty-ms": "^9.2.0",
+    "rcon-client": "^4.2.0",
     "rainlink": "^1.2.7",
     "rainlink-voice": "^1.0.1"
   },

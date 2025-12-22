@@ -90,6 +90,22 @@ LAVALINK_SOURCE = yt # Based on enabled sources in Lavalink config, see ./src/se
 DEFAULT_SEARCH_ENGINE = youtubeMusic # Available options: youtubeMusic, youtube, soundcloud
 SPOTIFY_CLIENT_ID = # Your Spotify Client ID
 SPOTIFY_CLIENT_SECRET = # Your Spotify Client Secret
+
+# MINECRAFT (OPTIONAL - FOR AI TOOLS)
+MC_HOST = 127.0.0.1 # Minecraft server host for status checks
+MC_PORT = 25565 # Minecraft server port for status checks
+MC_STATUS_TIMEOUT_MS = 3000 # Status timeout
+
+RCON_HOST = 127.0.0.1 # RCON host (usually same machine)
+RCON_PORT = 25575 # RCON port (must match server.properties)
+RCON_PASSWORD = # RCON password (must match server.properties)
+RCON_TIMEOUT_MS = 5000 # RCON timeout
+
+# RCON ACCESS CONTROL (OPTIONAL)
+# comma-separated discord ids (recommended)
+RCON_ALLOWED_USER_IDS = 123456789012345678
+# comma-separated discord role ids (optional)
+RCON_ALLOWED_ROLE_IDS =
 ```
 
 `4.` Edit your Lavalink node settings & dev ID(s) in ./src/settings/config.js:
